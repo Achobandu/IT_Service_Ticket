@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}View Ticket{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Ticket #{{ ticket.id }}</h2>
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title">{{ ticket.title }}</h5>
+        <h6 class="card-subtitle mb-2 text-muted">Status: {{ ticket.status }} | Priority: {{ ticket.priority }}</h6>
+        <p class="card-text">{{ ticket.description }}</p>
+        <p class="card-text"><small class="text-muted">Created at: {{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</small></p>
+        <a href="{{ url_for('update_ticket', ticket_id=ticket.id) }}" class="btn btn-warning">Update Ticket</a>
+    </div>
+</div>
+{% endblock %}
