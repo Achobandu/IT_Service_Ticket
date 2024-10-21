@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify, render_template, redirect, url_for, f
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, timezone
 from flask_mail import Mail, Message
 import os
 
@@ -48,8 +48,8 @@ class Ticket(db.Model):
     description = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(20), default='Open')
     priority = db.Column(db.String(20), default='Medium')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
     closed_at = db.Column(db.DateTime, nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     assigned_to = db.Column(db.Integer, db.ForeignKey('user.id'))
@@ -68,9 +68,9 @@ def send_email(subject, recipient, body):
 @login_required
 def index():
     if current_user.is_staff:
-        tickets = Ticket.query.all()
+        tickets = Ticket.query.filter_by(status= 'Open').all()
     else:
-        tickets = Ticket.query.filter_by(user_id=current_user.id).all()
+        tickets = Ticket.query.filter_by(user_id=current_user.id, status='Open').all()
     return render_template('index.html', tickets=tickets)
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -127,14 +127,21 @@ def update_ticket(ticket_id):
         ticket.description = request.form['description']
         ticket.status = request.form['status']
         ticket.priority = request.form['priority']
+
+        if ticket.status == 'Closed':
+            ticket.closed_at = datetime.now(timezone.utc)
+        else:
+            ticket.closed_at = None
         if current_user.is_staff:
             assigned_to = User.query.filter_by(username=request.form['assigned_to']).first()
             if assigned_to:
                 ticket.assigned_to = assigned_to.id
+
         db.session.commit()
         send_email('Ticket Updated', current_user.email, f'Your ticket "{ticket.title}" has been updated.')
         flash('Ticket updated successfully')
         return redirect(url_for('view_ticket', ticket_id=ticket.id))
+
     staff = User.query.filter_by(is_staff=True).all()
     return render_template('update_ticket.html', ticket=ticket, staff=staff)
 
@@ -167,6 +174,14 @@ def create_user():
 
     return render_template('create_user.html')  # Create a form for user creation
 
+@app.route('/archive')
+@login_required
+def archive():
+    if current_user.is_staff:
+        tickets = Ticket.query.filter(Ticket.closed_at.isnot(None)).all()
+    else:
+        tickets = Ticket.query.filter(user_id=current_user.id).filter(Ticket.closed_at.isnot(None)).all()
+    return render_template('archive.html', tickets=tickets)
 
 if __name__ == '__main__':
     with app.app_context():

@@ -5,6 +5,7 @@
 {% block content %}
 <h2 class="mb-4">Tickets</h2>
 <a href="{{ url_for('new_ticket') }}" class="btn btn-primary mb-3">Create New Ticket</a>
+<a href="{{ url_for('archive') }}" class="btn btn-secondary mb-3">View Archived Tickets</a> <!-- Archive link -->
 <table class="table table-striped">
     <thead>
         <tr>
@@ -18,6 +19,7 @@
     </thead>
     <tbody>
         {% for ticket in tickets %}
+        {% if ticket.status != 'Closed' %}
         <tr>
             <td>{{ ticket.id }}</td>
             <td>{{ ticket.title }}</td>
@@ -29,7 +31,8 @@
                 <a href="{{ url_for('update_ticket', ticket_id=ticket.id) }}" class="btn btn-sm btn-warning">Update</a>
             </td>
         </tr>
-        {% endfor %}
+        {% endif %} <!-- Closing the if block -->
+        {% endfor %} <!-- Closing the for loop -->
     </tbody>
 </table>
 {% endblock %}
